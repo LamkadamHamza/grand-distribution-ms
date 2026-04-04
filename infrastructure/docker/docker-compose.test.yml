@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  discovery-service:
+    image: ${DOCKER_REGISTRY:-localhost:5000}/discovery-service:${BUILD_NUMBER:-latest}
+    container_name: discovery-service-test
+    ports:
+      - "8761:8761"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    image: ${DOCKER_REGISTRY:-localhost:5000}/api-gateway:${BUILD_NUMBER:-latest}
+    container_name: api-gateway-test
+    ports:
+      - "8888:8888"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery-service:8761/eureka
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - test-network
+
+  product-service:
+    image: ${DOCKER_REGISTRY:-localhost:5000}/product-service:${BUILD_NUMBER:-latest}
+    container_name: product-service-test
+    ports:
+      - "8001:8001"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery-service:8761/eureka
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

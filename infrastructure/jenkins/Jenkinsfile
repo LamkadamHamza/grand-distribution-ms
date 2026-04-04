@@ -1,0 +1,120 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'Maven-3.9'
+        jdk 'JDK-17'
+    }
+
+    environment {
+        DOCKER_REGISTRY = 'localhost:5000'
+        BUILD_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'echo "Branch: ${BRANCH_NAME}"'
+            }
+        }
+
+        stage('Build Parent') {
+            steps {
+                sh 'mvn clean install -N'
+            }
+        }
+
+        stage('Build Services') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    def services = ['discovery-service', 'api-gateway', 'product-service']
+                    services.each { service ->
+                        sh """
+                            docker build \
+                                -t ${DOCKER_REGISTRY}/${service}:${BUILD_TAG} \
+                                -t ${DOCKER_REGISTRY}/${service}:latest \
+                                -f ${service}/Dockerfile \
+                                ${service}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Integration Tests') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'feature/*'
+                }
+            }
+            steps {
+                sh """
+                    export BUILD_NUMBER=${BUILD_TAG}
+                    docker-compose -f infrastructure/docker/docker-compose.test.yml up -d
+                """
+                sh 'sleep 30'
+                sh '''
+                    curl -f http://localhost:8761/actuator/health
+                    curl -f http://localhost:8888/actuator/health
+                    curl -f http://localhost:8001/actuator/health
+                '''
+                sh 'docker-compose -f infrastructure/docker/docker-compose.test.yml down -v'
+            }
+        }
+
+        stage('Push Images') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'preprod'
+                    branch 'main'
+                }
+            }
+            steps {
+                script {
+                    def services = ['discovery-service', 'api-gateway', 'product-service']
+                    services.each { service ->
+                        sh "docker push ${DOCKER_REGISTRY}/${service}:${BUILD_TAG}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy DEV') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                sh """
+                    export BUILD_NUMBER=${BUILD_TAG}
+                    docker-compose -f infrastructure/docker/docker-compose.dev.yml up -d
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker system prune -f || true'
+        }
+    }
+}

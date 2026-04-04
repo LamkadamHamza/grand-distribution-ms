@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  discovery-service:
+    build:
+      context: ../../discovery-service
+      dockerfile: Dockerfile
+    container_name: discovery-service-dev
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ../../api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway-dev
+    ports:
+      - "8888:8888"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery-service:8761/eureka
+      - SPRING_PROFILES_ACTIVE=dev
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - dev-network
+
+  product-service:
+    build:
+      context: ../../product-service
+      dockerfile: Dockerfile
+    container_name: product-service-dev
+    ports:
+      - "8001:8001"
+    environment:
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://discovery-service:8761/eureka
+      - SPRING_PROFILES_ACTIVE=dev
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - dev-network
+
+networks:
+  dev-network:
+    driver: bridge

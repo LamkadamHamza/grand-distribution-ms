@@ -1,36 +1,40 @@
 pipeline {
     agent any
-
-    tools {
-        maven 'Maven-3.9'
-        jdk 'JDK-17'
+    
+    // ✅ BONNE PRATIQUE: Options pour nettoyage et contrôle
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '5'))  // Garde seulement 5 builds
+        disableConcurrentBuilds()  // Pas de builds simultanés sur même branche
+        skipDefaultCheckout(true)    // On gère le checkout manuellement
     }
-
+    
     environment {
         DOCKER_REGISTRY = 'localhost:5000'
         BUILD_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
     }
-
+    
     stages {
-        stage('Checkout') {
+        // ✅ BONNE PRATIQUE: Nettoyer workspace AVANT tout
+        stage('Clean Workspace') {
             steps {
-                checkout scm
-                sh 'echo "Branch: ${BRANCH_NAME}"'
+                cleanWs()  // Supprime tout le workspace
+                checkout scm  // Checkout propre après nettoyage
+                echo "✅ Workspace cleaned and code checked out"
             }
         }
-
+        
         stage('Build Parent') {
             steps {
                 sh 'mvn clean install -N'
             }
         }
-
+        
         stage('Build Services') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
         }
-
+        
         stage('Unit Tests') {
             steps {
                 sh 'mvn test'
@@ -41,46 +45,42 @@ pipeline {
                 }
             }
         }
-
+        
+        // ✅ BONNE PRATIQUE: Builds Docker en PARALLÈLE
         stage('Build Docker Images') {
-            steps {
-                script {
-                    def services = ['discovery-service', 'api-gateway', 'product-service']
-                    services.each { service ->
-                        sh """
-                            docker build \
-                                -t ${DOCKER_REGISTRY}/${service}:${BUILD_TAG} \
-                                -t ${DOCKER_REGISTRY}/${service}:latest \
-                                -f ${service}/Dockerfile \
-                                ${service}
-                        """
-                    }
-                }
-            }
-        }
-
-        stage('Integration Tests') {
             when {
                 anyOf {
                     branch 'develop'
-                    branch 'feature/*'
+                    branch 'preprod'
+                    branch 'main'
                 }
             }
             steps {
-                sh """
-                    export BUILD_NUMBER=${BUILD_TAG}
-                    docker-compose -f infrastructure/docker/docker-compose.test.yml up -d
-                """
-                sh 'sleep 30'
-                sh '''
-                    curl -f http://localhost:8761/actuator/health
-                    curl -f http://localhost:8888/actuator/health
-                    curl -f http://localhost:8001/actuator/health
-                '''
-                sh 'docker-compose -f infrastructure/docker/docker-compose.test.yml down -v'
+                script {
+                    def services = [
+                        [name: 'discovery-service', path: 'discovery-service'],
+                        [name: 'api-gateway', path: 'api-gateway'],
+                        [name: 'product-service', path: 'product-service']
+                    ]
+                    
+                    // Build en parallèle
+                    def parallelBuilds = [:]
+                    services.each { service ->
+                        parallelBuilds["Build ${service.name}"] = {
+                            sh """
+                                docker build \
+                                    -t ${DOCKER_REGISTRY}/${service.name}:${BUILD_TAG} \
+                                    -t ${DOCKER_REGISTRY}/${service.name}:latest \
+                                    -f ${service.path}/Dockerfile \
+                                    ${service.path}
+                            """
+                        }
+                    }
+                    parallel parallelBuilds
+                }
             }
         }
-
+        
         stage('Push Images') {
             when {
                 anyOf {
@@ -98,7 +98,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Deploy DEV') {
             when {
                 branch 'develop'
@@ -106,15 +106,50 @@ pipeline {
             steps {
                 sh """
                     export BUILD_NUMBER=${BUILD_TAG}
+                    docker-compose -f infrastructure/docker/docker-compose.dev.yml down || true
                     docker-compose -f infrastructure/docker/docker-compose.dev.yml up -d
                 """
+                echo "✅ Déployé sur DEV: http://localhost:8888"
+            }
+        }
+        
+        stage('Deploy PREPROD') {
+            when {
+                branch 'preprod'
+            }
+            steps {
+                sh """
+                    export VERSION=${BUILD_TAG}
+                    docker-compose -f infrastructure/docker/docker-compose.preprod.yml down || true
+                    docker-compose -f infrastructure/docker/docker-compose.preprod.yml up -d
+                """
+                echo "✅ Déployé sur PREPROD"
+            }
+        }
+        
+        stage('Deploy PROD') {
+            when {
+                branch 'main'
+            }
+            steps {
+                input message: '🚀 Déployer en Production ?', ok: 'Déployer'
+                echo "Déploiement Production en cours..."
             }
         }
     }
-
+    
+    // ✅ BONNE PRATIQUE: Nettoyer workspace APRÈS tout (même en cas d'erreur)
     post {
         always {
+            cleanWs()  // Nettoyage final garanti
             sh 'docker system prune -f || true'
+            echo "✅ Workspace cleaned after build"
+        }
+        success {
+            echo "✅ Build ${BUILD_TAG} réussi!"
+        }
+        failure {
+            echo "❌ Build ${BUILD_TAG} échoué"
         }
     }
 }

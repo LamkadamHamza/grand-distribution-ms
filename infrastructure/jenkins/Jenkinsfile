@@ -1,6 +1,9 @@
 pipeline {
     agent any
     
+=======
+
+>>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
     // ✅ BONNE PRATIQUE: Options pour nettoyage et contrôle
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))  // Garde seulement 5 builds
@@ -45,7 +48,11 @@ pipeline {
                 }
             }
         }
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
         // ✅ BONNE PRATIQUE: Builds Docker en PARALLÈLE
         stage('Build Docker Images') {
             when {
@@ -62,7 +69,11 @@ pipeline {
                         [name: 'api-gateway', path: 'api-gateway'],
                         [name: 'product-service', path: 'product-service']
                     ]
+<<<<<<< HEAD
                     
+=======
+
+>>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
                     // Build en parallèle
                     def parallelBuilds = [:]
                     services.each { service ->
@@ -112,7 +123,11 @@ pipeline {
                 echo "✅ Déployé sur DEV: http://localhost:8888"
             }
         }
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
         stage('Deploy PREPROD') {
             when {
                 branch 'preprod'
@@ -126,7 +141,11 @@ pipeline {
                 echo "✅ Déployé sur PREPROD"
             }
         }
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
         stage('Deploy PROD') {
             when {
                 branch 'main'
@@ -137,7 +156,11 @@ pipeline {
             }
         }
     }
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
     // ✅ BONNE PRATIQUE: Nettoyer workspace APRÈS tout (même en cas d'erreur)
     post {
         always {

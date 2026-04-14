@@ -3,7 +3,7 @@ FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 WORKDIR /app
 
 # Copier le pom.xml parent d'abord (pour le cache)
-COPY ../pom.xml .
+
 COPY pom.xml .
 COPY src ./src
 

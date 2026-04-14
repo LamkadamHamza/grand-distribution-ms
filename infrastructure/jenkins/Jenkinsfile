@@ -1,21 +1,19 @@
+
 pipeline {
     agent any
-    
-=======
 
->>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
     // ✅ BONNE PRATIQUE: Options pour nettoyage et contrôle
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))  // Garde seulement 5 builds
         disableConcurrentBuilds()  // Pas de builds simultanés sur même branche
         skipDefaultCheckout(true)    // On gère le checkout manuellement
     }
-    
+
     environment {
         DOCKER_REGISTRY = 'localhost:5000'
         BUILD_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
     }
-    
+
     stages {
         // ✅ BONNE PRATIQUE: Nettoyer workspace AVANT tout
         stage('Clean Workspace') {
@@ -25,19 +23,19 @@ pipeline {
                 echo "✅ Workspace cleaned and code checked out"
             }
         }
-        
+
         stage('Build Parent') {
             steps {
                 sh 'mvn clean install -N'
             }
         }
-        
+
         stage('Build Services') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
         }
-        
+
         stage('Unit Tests') {
             steps {
                 sh 'mvn test'
@@ -48,11 +46,7 @@ pipeline {
                 }
             }
         }
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
         // ✅ BONNE PRATIQUE: Builds Docker en PARALLÈLE
         stage('Build Docker Images') {
             when {
@@ -69,11 +63,7 @@ pipeline {
                         [name: 'api-gateway', path: 'api-gateway'],
                         [name: 'product-service', path: 'product-service']
                     ]
-<<<<<<< HEAD
-                    
-=======
 
->>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
                     // Build en parallèle
                     def parallelBuilds = [:]
                     services.each { service ->
@@ -91,7 +81,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Push Images') {
             when {
                 anyOf {
@@ -109,7 +99,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Deploy DEV') {
             when {
                 branch 'develop'
@@ -123,11 +113,7 @@ pipeline {
                 echo "✅ Déployé sur DEV: http://localhost:8888"
             }
         }
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
         stage('Deploy PREPROD') {
             when {
                 branch 'preprod'
@@ -141,11 +127,7 @@ pipeline {
                 echo "✅ Déployé sur PREPROD"
             }
         }
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
         stage('Deploy PROD') {
             when {
                 branch 'main'
@@ -156,11 +138,7 @@ pipeline {
             }
         }
     }
-<<<<<<< HEAD
-    
-=======
 
->>>>>>> c349e5c (fix: update Dockerfiles and Jenkinsfile)
     // ✅ BONNE PRATIQUE: Nettoyer workspace APRÈS tout (même en cas d'erreur)
     post {
         always {

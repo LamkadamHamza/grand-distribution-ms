@@ -1,11 +1,6 @@
-
 pipeline {
     agent any
-<<<<<<< HEAD
-
-=======
     
->>>>>>> main
     // ✅ BONNE PRATIQUE: Options pour nettoyage et contrôle
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))  // Garde seulement 5 builds
@@ -50,11 +45,7 @@ pipeline {
                 }
             }
         }
-<<<<<<< HEAD
-
-=======
         
->>>>>>> main
         // ✅ BONNE PRATIQUE: Builds Docker en PARALLÈLE
         stage('Build Docker Images') {
             when {
@@ -67,29 +58,15 @@ pipeline {
             steps {
                 script {
                     def services = [
-<<<<<<< HEAD
-                        [name: 'discovery-service', path: 'discovery-service'],
-                        [name: 'api-gateway', path: 'api-gateway'],
-                        [name: 'product-service', path: 'product-service']
-=======
                         [name: 'discovery-service', port: '8761'],
                         [name: 'api-gateway', port: '8888'],
                         [name: 'product-service', port: '8001']
->>>>>>> main
                     ]
 
                     // Build en parallèle
                     def parallelBuilds = [:]
                     services.each { service ->
                         parallelBuilds["Build ${service.name}"] = {
-<<<<<<< HEAD
-                            sh """
-                                docker build \
-                                    -t ${DOCKER_REGISTRY}/${service.name}:${BUILD_TAG} \
-                                    -t ${DOCKER_REGISTRY}/${service.name}:latest \
-                                    -f ${service.path}/Dockerfile \
-                                    ${service.path}
-=======
                             // Créer un Dockerfile temporaire simple
                             sh """
                                 echo 'FROM eclipse-temurin:17-jre-alpine
@@ -105,7 +82,6 @@ pipeline {
                                     -t ${DOCKER_REGISTRY}/${service.name}:latest \
                                     -f ${service.name}/Dockerfile.runtime \
                                     ${service.name}
->>>>>>> main
                             """
                         }
                     }
@@ -145,11 +121,7 @@ pipeline {
                 echo "✅ Déployé sur DEV: http://localhost:8888"
             }
         }
-<<<<<<< HEAD
-
-=======
         
->>>>>>> main
         stage('Deploy PREPROD') {
             when {
                 branch 'preprod'
@@ -163,11 +135,7 @@ pipeline {
                 echo "✅ Déployé sur PREPROD"
             }
         }
-<<<<<<< HEAD
-
-=======
         
->>>>>>> main
         stage('Deploy PROD') {
             when {
                 branch 'main'
@@ -178,11 +146,7 @@ pipeline {
             }
         }
     }
-<<<<<<< HEAD
-
-=======
     
->>>>>>> main
     // ✅ BONNE PRATIQUE: Nettoyer workspace APRÈS tout (même en cas d'erreur)
     post {
         always {

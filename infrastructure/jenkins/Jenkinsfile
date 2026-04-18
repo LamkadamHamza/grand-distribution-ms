@@ -1,19 +1,23 @@
 
 pipeline {
     agent any
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> main
     // ✅ BONNE PRATIQUE: Options pour nettoyage et contrôle
     options {
         buildDiscarder(logRotator(numToKeepStr: '5'))  // Garde seulement 5 builds
         disableConcurrentBuilds()  // Pas de builds simultanés sur même branche
         skipDefaultCheckout(true)    // On gère le checkout manuellement
     }
-
+    
     environment {
         DOCKER_REGISTRY = 'localhost:5000'
         BUILD_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
     }
-
+    
     stages {
         // ✅ BONNE PRATIQUE: Nettoyer workspace AVANT tout
         stage('Clean Workspace') {
@@ -23,19 +27,19 @@ pipeline {
                 echo "✅ Workspace cleaned and code checked out"
             }
         }
-
+        
         stage('Build Parent') {
             steps {
                 sh 'mvn clean install -N'
             }
         }
-
+        
         stage('Build Services') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
         }
-
+        
         stage('Unit Tests') {
             steps {
                 sh 'mvn test'
@@ -46,7 +50,11 @@ pipeline {
                 }
             }
         }
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> main
         // ✅ BONNE PRATIQUE: Builds Docker en PARALLÈLE
         stage('Build Docker Images') {
             when {
@@ -59,21 +67,45 @@ pipeline {
             steps {
                 script {
                     def services = [
+<<<<<<< HEAD
                         [name: 'discovery-service', path: 'discovery-service'],
                         [name: 'api-gateway', path: 'api-gateway'],
                         [name: 'product-service', path: 'product-service']
+=======
+                        [name: 'discovery-service', port: '8761'],
+                        [name: 'api-gateway', port: '8888'],
+                        [name: 'product-service', port: '8001']
+>>>>>>> main
                     ]
 
                     // Build en parallèle
                     def parallelBuilds = [:]
                     services.each { service ->
                         parallelBuilds["Build ${service.name}"] = {
+<<<<<<< HEAD
                             sh """
                                 docker build \
                                     -t ${DOCKER_REGISTRY}/${service.name}:${BUILD_TAG} \
                                     -t ${DOCKER_REGISTRY}/${service.name}:latest \
                                     -f ${service.path}/Dockerfile \
                                     ${service.path}
+=======
+                            // Créer un Dockerfile temporaire simple
+                            sh """
+                                echo 'FROM eclipse-temurin:17-jre-alpine
+                                WORKDIR /app
+                                RUN addgroup -S spring && adduser -S spring -G spring
+                                USER spring:spring
+                                COPY target/*.jar app.jar
+                                EXPOSE ${service.port}
+                                ENTRYPOINT ["java", "-jar", "app.jar"]' > ${service.name}/Dockerfile.runtime
+
+                                docker build \
+                                    -t ${DOCKER_REGISTRY}/${service.name}:${BUILD_TAG} \
+                                    -t ${DOCKER_REGISTRY}/${service.name}:latest \
+                                    -f ${service.name}/Dockerfile.runtime \
+                                    ${service.name}
+>>>>>>> main
                             """
                         }
                     }
@@ -81,7 +113,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Push Images') {
             when {
                 anyOf {
@@ -99,7 +131,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Deploy DEV') {
             when {
                 branch 'develop'
@@ -113,7 +145,11 @@ pipeline {
                 echo "✅ Déployé sur DEV: http://localhost:8888"
             }
         }
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> main
         stage('Deploy PREPROD') {
             when {
                 branch 'preprod'
@@ -127,7 +163,11 @@ pipeline {
                 echo "✅ Déployé sur PREPROD"
             }
         }
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> main
         stage('Deploy PROD') {
             when {
                 branch 'main'
@@ -138,7 +178,11 @@ pipeline {
             }
         }
     }
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> main
     // ✅ BONNE PRATIQUE: Nettoyer workspace APRÈS tout (même en cas d'erreur)
     post {
         always {

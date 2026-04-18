@@ -58,21 +58,30 @@ pipeline {
             steps {
                 script {
                     def services = [
-                        [name: 'discovery-service', path: 'discovery-service'],
-                        [name: 'api-gateway', path: 'api-gateway'],
-                        [name: 'product-service', path: 'product-service']
+                        [name: 'discovery-service', port: '8761'],
+                        [name: 'api-gateway', port: '8888'],
+                        [name: 'product-service', port: '8001']
                     ]
-                    
+
                     // Build en parallèle
                     def parallelBuilds = [:]
                     services.each { service ->
                         parallelBuilds["Build ${service.name}"] = {
+                            // Créer un Dockerfile temporaire simple
                             sh """
+                                echo 'FROM eclipse-temurin:17-jre-alpine
+                                WORKDIR /app
+                                RUN addgroup -S spring && adduser -S spring -G spring
+                                USER spring:spring
+                                COPY target/*.jar app.jar
+                                EXPOSE ${service.port}
+                                ENTRYPOINT ["java", "-jar", "app.jar"]' > ${service.name}/Dockerfile.runtime
+
                                 docker build \
                                     -t ${DOCKER_REGISTRY}/${service.name}:${BUILD_TAG} \
                                     -t ${DOCKER_REGISTRY}/${service.name}:latest \
-                                    -f ${service.path}/Dockerfile \
-                                    ${service.path}
+                                    -f ${service.name}/Dockerfile.runtime \
+                                    ${service.name}
                             """
                         }
                     }
